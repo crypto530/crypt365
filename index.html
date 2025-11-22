@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng điều khiển Crypto | Crypto Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Thiết lập font Inter */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Tùy chỉnh thanh cuộn cho giao diện tối */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937; /* bg-gray-800 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; /* bg-gray-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* bg-gray-500 */
+        }
+
+        /* Hiệu ứng mờ khi modal mở */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+        }
+
+        /* Ẩn các view và chỉ hiển thị cái đang active */
+        .view {
+            display: none;
+        }
+        .view.active {
+            display: block;
+        }
+        
+        /* Hiệu ứng cho nút navigation mobile khi active */
+        .nav-button-mobile.active .icon {
+            color: #10b981; /* teal-500 */
+        }
+        .nav-button-mobile.active .text {
+            color: #10b981; /* teal-500 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen text-white">
+
+    <div id="notification-container" class="fixed top-4 right-4 z-[1000] space-y-3">
+        </div>
+
+    <nav class="hidden md:flex bg-gray-800 p-4 shadow-lg sticky top-0 z-10 justify-between items-center">
+        <div class="text-2xl font-bold text-teal-400">Crypto Dashboard</div>
+        <div class="space-x-6">
+            <button id="dashboard-nav-desktop" class="text-teal-400 font-medium hover:text-teal-300 transition duration-200" onclick="showView('dashboard')">Trang chủ</button>
+            <button id="investment-nav-desktop" class="text-gray-300 font-medium hover:text-teal-300 transition duration-200" onclick="showView('investment')">Đầu tư</button>
+            <button id="account-nav-desktop" class="text-gray-300 font-medium hover:text-teal-300 transition duration-200" onclick="showView('account')">Tài khoản của tôi</button>
+        </div>
+        <div class="flex items-center space-x-3">
+            
+            <div class="relative">
+                <button id="notification-button" class="bg-gray-700 p-2 rounded-full hover:bg-gray-600 transition duration-200" aria-label="Thông báo" onclick="toggleNotificationModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span id="notification-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full hidden">0</span>
+                </button>
+            </div>
+            <button id="auth-button" class="bg-teal-600 px-4 py-2 rounded-lg font-semibold hover:bg-teal-500 transition duration-200" onclick="handleAuthAction()">
+                Đăng nhập
+            </button>
+            </div>
+    </nav>
+    
+    <div id="notification-modal" class="hidden absolute right-4 md:right-8 mt-2 w-72 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 z-50">
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+            <h4 class="text-lg font-semibold text-white">Thông báo mới</h4>
+            <button class="text-sm text-teal-400 hover:text-teal-300" onclick="markAllAsRead()">Đánh dấu đã đọc</button>
+        </div>
+        <div id="notification-list" class="max-h-80 overflow-y-auto divide-y divide-gray-700">
+            <p id="empty-notifications" class="p-4 text-gray-500 text-sm text-center">Không có thông báo mới.</p>
+        </div>
+    </div>
+    <main class="md:p-8 pb-20">
+        
+        <div id="dashboard-view" class="view p-4 md:p-0 active">
+            <h2 class="text-3xl font-bold mb-6 text-white">Trang chủ</h2>
+            
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8 flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <p class="text-gray-400 text-sm">Tổng số dư (bao gồm Tiền mặt và Tiền điện tử)</p>
+                    <p class="text-4xl font-extrabold text-teal-400 mt-1">$<span id="total-balance">5.00</span></p>
+                </div>
+                <div class="mt-4 md:mt-0 md:text-right">
+                    <p class="text-gray-400 text-sm">Số dư Tiền mặt</p>
+                    <p class="text-xl font-semibold text-white">$<span id="cash-balance-dashboard">5.00</span></p>
+                    <button class="mt-2 bg-teal-600 hover:bg-teal-500 text-white font-medium py-2 px-4 rounded-lg transition duration-200" onclick="showDepositModal()">
+                        Nạp USDT
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 p-4 rounded-xl shadow-lg">
+                <h3 class="text-2xl font-semibold mb-4 text-white">Thị trường Tiền điện tử</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead>
+                            <tr class="text-gray-400 text-left">
+                                <th class="py-3 px-4 font-medium">Tên</th>
+                                <th class="py-3 px-4 font-medium">Giá (USD)</th>
+                                <th class="py-3 px-4 font-medium">Thay đổi (24h)</th>
+                                <th class="py-3 px-4 font-medium hidden sm:table-cell">Vốn hóa</th>
+                                <th class="py-3 px-4 font-medium">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="crypto-market-body" class="divide-y divide-gray-700">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="investment-view" class="view hidden p-4 md:p-0">
+            <h2 class="text-3xl font-bold mb-6 text-white">Đầu tư của tôi</h2>
+            
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
+                <p class="text-gray-400 text-sm">Tổng giá trị tài sản ròng</p>
+                <p class="text-4xl font-extrabold text-white mt-1">$<span id="net-worth-display">5.00</span></p>
+                <p class="text-sm mt-2 text-gray-500">Giá trị này được tính dựa trên giá thị trường hiện tại.</p>
+            </div>
+
+            <div class="bg-gray-800 p-4 rounded-xl shadow-lg">
+                <h3 class="text-2xl font-semibold mb-4 text-white">Danh mục hiện tại</h3>
+                <div id="portfolio-list" class="space-y-4">
+                    <p id="empty-portfolio" class="text-gray-500 text-center py-4">Bạn chưa sở hữu đồng tiền điện tử nào.</p>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="account-view" class="view hidden p-4 md:p-0">
+            <h2 class="text-3xl font-bold mb-6 text-white">Tài khoản của tôi</h2>
+
+            <div class="lg:grid lg:grid-cols-3 lg:gap-8">
+
+                <div class="lg:col-span-2">
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-teal-600 p-3 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-sm">ID Người dùng</p>
+                                <p id="user-id-display" class="text-xl font-bold text-teal-400 mb-2">CD0012345</p> 
+                                <p class="text-gray-400 text-sm">Tổng số dư (USD)</p>
+                                <p class="text-3xl font-bold text-white mt-1">$<span id="cash-balance-display">5.00</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 flex flex-wrap gap-3 md:justify-between border-t border-gray-700 pt-4">
+                            <div class="min-w-[120px]">
+                                <p class="text-gray-400 text-sm">Cấp độ VIP</p>
+                                <p id="vip-level" class="text-yellow-500 text-lg font-semibold">VIP 0</p>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button class="py-2 px-4 bg-teal-600 hover:bg-teal-500 rounded-lg text-white font-medium transition duration-200 flex items-center justify-center" onclick="showDepositModal()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Nạp tiền
+                                </button>
+                                <button class="py-2 px-4 bg-red-600 hover:bg-red-500 rounded-lg text-white font-medium transition duration-200 flex items-center justify-center" onclick="showTransactionModal('withdraw')">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                                    </svg>
+                                    Rút tiền
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between bg-gray-700 p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition duration-200" onclick="showTransferModal()">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2 bg-blue-500 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                </div>
+                                <p class="text-white font-medium">Chuyển khoản nội bộ</p>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                        
+                        <div class="flex items-center justify-between bg-gray-700 p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition duration-200">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2 bg-green-500 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p class="text-white font-medium">Lịch sử giao dịch</p>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                        
+                        <div class="flex items-center justify-between bg-gray-700 p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition duration-200" onclick="showChangeLoginPasswordModal()">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2 bg-pink-600 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V9a2 2 0 012-2h6zm0 0V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2m6 0h.01" />
+                                    </svg>
+                                </div>
+                                <p class="text-white font-medium">Thay đổi Mật khẩu Đăng nhập</p>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+
+                        <div class="flex items-center justify-between bg-gray-700 p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition duration-200">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2 bg-red-500 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v3h8z" />
+                                    </svg>
+                                </div>
+                                <p class="text-white font-medium">Bảo mật & Cài đặt</p>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-1 mt-8 lg:mt-0"> 
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold text-white mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Ghi chú Nâng cấp VIP
+                        </h3>
+                        <p class="text-gray-400 mb-4 text-sm">
+                            Cấp độ VIP của bạn sẽ được tự động nâng cấp khi tổng số tiền nạp tích lũy của bạn đạt mốc yêu cầu. 
+                        </p>
+                        <ul class="list-disc list-inside text-gray-300 text-sm space-y-2">
+                            <li>VIP 1: Tổng nạp ≥ $10</li>
+                            <li>VIP 2: Tổng nạp ≥ $100</li>
+                            <li>VIP 3: Tổng nạp ≥ $1,000</li>
+                            <li>VIP 4: Tổng nạp ≥ $10,000</li>
+                            <li>VIP 5: Tổng nạp ≥ $100,000</li>
+                        </ul>
+                        <div class="mt-6 pt-4 border-t border-gray-700">
+                            <p class="text-white font-semibold mb-2 text-sm">Giới hạn Thanh toán & Nhận chuyển khoản</p>
+                            <p class="text-gray-400 mb-3 text-sm">Nếu tài khoản của bạn cần nhận chuyển khoản từ người khác, bạn cần sử dụng giới hạn thanh toán:</p>
+                            <ul class="list-disc list-inside text-gray-300 text-sm space-y-2 mb-4">
+                                <li>VIP 1: Giới hạn thanh toán 10 USDT mỗi ngày và 50 USDT mỗi tháng</li>
+                                <li>VIP 2: Giới hạn thanh toán là 100 USDT mỗi ngày và 3.000 USDT mỗi tháng</li>
+                                <li>VIP 3: Giới hạn thanh toán là 30.000 USDT mỗi ngày và 900.000 USDT mỗi tháng</li>
+                                <li>VIP 4: Giới hạn thanh toán là 100.000 USDT mỗi ngày và 3.000.000 USDT mỗi tháng</li>
+                                <li>VIP 5: Giới hạn thanh toán là 200.000 USDT mỗi ngày và 6.000.000 USDT mỗi tháng</li>
+                            </ul>
+                            <p class="text-gray-400 mb-2 text-sm">Ví dụ về giới hạn chuyển khoản (Chuyển đi từ VIP5):</p>
+                            <ul class="list-disc list-inside text-gray-300 text-sm space-y-1">
+                                <li>Chuyển VIP5 sang VIP1 (10USDT)</li>
+                                <li>Chuyển VIP5 sang VIP2 (100USDT)</li>
+                                <li>Chuyển VIP5 sang VIP3 (30000USDT)</li>
+                                <li>Chuyển VIP5 sang VIP4 (100000USDT)</li>
+                                <li>Chuyển VIP5 sang VIP5 (100000USDT)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 md:hidden bg-gray-800 border-t border-gray-700 shadow-2xl z-20">
+        <div class="flex justify-around items-center h-16">
+            <button id="dashboard-nav-mobile" class="nav-button-mobile active flex flex-col items-center text-xs text-gray-400 w-1/3 transition duration-200" onclick="showView('dashboard')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span class="text">Trang chủ</span>
+            </button>
+            <button id="investment-nav-mobile" class="nav-button-mobile flex flex-col items-center text-xs text-gray-400 w-1/3 transition duration-200" onclick="showView('investment')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                <span class="text">Đầu tư</span>
+            </button>
+            <button id="account-nav-mobile" class="nav-button-mobile flex flex-col items-center text-xs text-gray-400 w-1/3 transition duration-200" onclick="showView('account')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span class="text">Tài khoản</span>
+            </button>
+        </div>
+    </nav>
+    
+    <div id="deposit-modal" class="fixed inset-0 hidden items-center justify-center modal-overlay z-[1001]">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
+            <h3 class="text-2xl font-bold text-white mb-4">Nạp USDT</h3>
+            <button class="absolute top-4 right-4 text-gray-400 hover:text-white" onclick="hideDepositModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            
+            <label class="block text-gray-400 text-sm mb-2" for="deposit-amount">Số tiền nạp (USD)</label>
+            <input type="number" id="deposit-amount" value="50" min="1" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+
+            <label class="block text-gray-400 text-sm mb-2">Chọn Mạng</label>
+            <div class="flex space-x-4 mb-4">
+                <label class="inline-flex items-center">
+                    <input type="radio" name="network" value="ERC20" checked class="form-radio text-teal-500 bg-gray-700 border-gray-600" onchange="updateDepositAddress()">
+                    <span class="ml-2 text-white">ERC20</span>
+                </label>
+                <label class="inline-flex items-center">
+                    <input type="radio" name="network" value="BEP20" class="form-radio text-teal-500 bg-gray-700 border-gray-600" onchange="updateDepositAddress()">
+                    <span class="ml-2 text-white">BEP20</span>
+                </label>
+                <label class="inline-flex items-center">
+                    <input type="radio" name="network" value="SOL" class="form-radio text-teal-500 bg-gray-700 border-gray-600" onchange="updateDepositAddress()">
+                    <span class="ml-2 text-white">SOL</span>
+                </label>
+                </div>
+            
+            <label class="block text-gray-400 text-sm mb-2">Địa chỉ Ví Nạp USDT (Đã chọn: <span id="selected-network-display" class="font-semibold text-teal-400">ERC20</span>)</label>
+            <div class="bg-gray-700 p-3 rounded-lg flex items-center mb-6">
+                <p id="deposit-address-display" class="flex-grow text-white break-all text-sm font-mono">Địa chỉ ví sẽ hiển thị tại đây</p>
+                <button class="ml-3 text-teal-400 hover:text-teal-300 transition duration-200" onclick="copyDepositAddress()" aria-label="Sao chép địa chỉ">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-6 2l-4 4m0 0l-4-4m4 4v-4" />
+                     </svg>
+                </button>
+            </div>
+            <button class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3 rounded-lg transition duration-200" onclick="simulateDeposit()">
+                Tiếp tục
+            </button>
+            <p class="text-xs text-gray-500 mt-3 text-center">Giao dịch sẽ được xử lý trong vòng 5 phút (mô phỏng).</p>
+        </div>
+    </div>
+
+    <div id="transaction-modal" class="fixed inset-0 hidden items-center justify-center modal-overlay z-[1001]">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
+            <h3 id="transaction-title" class="text-2xl font-bold text-white mb-4">Giao dịch</h3>
+            <button class="absolute top-4 right-4 text-gray-400 hover:text-white" onclick="hideTransactionModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            
+            <p id="transaction-info" class="text-gray-400 text-sm mb-4">Thông tin giao dịch.</p>
+
+            <div id="withdrawal-address-group" class="mb-4 hidden"> 
+                <label class="block text-gray-400 text-sm mb-2" for="withdrawal-address">Địa chỉ Ví Rút tiền (USDT ERC20/BEP20)</label>
+                <input type="text" id="withdrawal-address" placeholder="Nhập địa chỉ ví USDT của bạn" class="w-full bg-gray-700 text-white p-3 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
+            </div>
+            <label class="block text-gray-400 text-sm mb-2" for="transaction-amount">Số lượng/Số tiền</label>
+            <input type="number" id="transaction-amount" value="1" min="0.01" step="any" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+
+            <label class="block text-gray-400 text-sm mb-2" for="withdrawal-password">Mật khẩu Rút tiền</label>
+            <input type="password" id="withdrawal-password" placeholder="Nhập mật khẩu rút tiền" value="Thien0108@" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-6 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+
+            <button id="transaction-button" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3 rounded-lg transition duration-200" onclick="simulateTransaction()">
+                Xác nhận
+            </button>
+        </div>
+    </div>
+
+    <div id="transfer-modal" class="fixed inset-0 hidden items-center justify-center modal-overlay z-[1001]">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
+            <h3 class="text-2xl font-bold text-white mb-4">Chuyển khoản Nội bộ</h3>
+            <button class="absolute top-4 right-4 text-gray-400 hover:text-white" onclick="hideTransferModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            
+            <label class="block text-gray-400 text-sm mb-2" for="transfer-recipient">ID Người nhận</label>
+            <input type="text" id="transfer-recipient" placeholder="Ví dụ: user12345" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+
+            <label class="block text-gray-400 text-sm mb-2" for="transfer-amount">Số tiền chuyển (USD)</label>
+            <input type="number" id="transfer-amount" value="10" min="1" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-6 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+            
+            <button class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg transition duration-200" onclick="simulateTransfer()">
+                Thực hiện Chuyển khoản
+            </button>
+        </div>
+    </div>
+    
+    <div id="change-password-modal" class="fixed inset-0 hidden items-center justify-center modal-overlay z-[1001]">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
+            <h3 class="text-2xl font-bold text-white mb-4">Thay đổi Mật khẩu Đăng nhập</h3>
+            <button class="absolute top-4 right-4 text-gray-400 hover:text-white" onclick="hideChangeLoginPasswordModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            
+            <label class="block text-gray-400 text-sm mb-2" for="new-login-password">Mật khẩu mới</label>
+            <input type="password" id="new-login-password" placeholder="Nhập mật khẩu đăng nhập mới" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+
+            <label class="block text-gray-400 text-sm mb-2" for="confirm-new-login-password">Xác nhận Mật khẩu mới</label>
+            <input type="password" id="confirm-new-login-password" placeholder="Nhập lại mật khẩu mới" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+            
+            <label class="block text-gray-400 text-sm mb-2" for="confirm-withdrawal-password">Mật khẩu Rút tiền (Xác nhận)</label>
+             <input type="password" id="confirm-withdrawal-password" placeholder="Nhập mật khẩu rút tiền" value="Thien0108@" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-6 focus:ring-2 focus:ring-red-500 focus:outline-none">
+
+
+            <button class="w-full bg-pink-600 hover:bg-pink-500 text-white font-medium py-3 rounded-lg transition duration-200" onclick="simulateChangeLoginPassword()">
+                Xác nhận Thay đổi Mật khẩu
+            </button>
+        </div>
+    </div>
+
+    <div id="auth-modal" class="fixed inset-0 hidden items-center justify-center modal-overlay z-[1001]">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
+            <button class="absolute top-4 right-4 text-gray-400 hover:text-white" onclick="hideAuthModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
+            <div class="flex border-b border-gray-700 mb-6">
+                <button id="login-tab" class="py-2 px-4 text-white font-semibold border-b-2 border-teal-500 transition duration-200" onclick="showAuthTab('login')">Đăng Nhập</button>
+                <button id="register-tab" class="py-2 px-4 text-gray-400 font-semibold hover:text-white transition duration-200" onclick="showAuthTab('register')">Đăng Ký</button>
+            </div>
+            
+            <div id="login-form-content" class="auth-content">
+                <label class="block text-gray-400 text-sm mb-2" for="login-username">Tên đăng nhập</label>
+                <input type="text" id="login-username" placeholder="Nhập tên đăng nhập" value="CD0012345" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+
+                <label class="block text-gray-400 text-sm mb-2" for="login-password">Mật khẩu</label>
+                <input type="password" id="login-password" placeholder="Nhập mật khẩu" value="Thien0108%" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-6 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                
+                <button class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3 rounded-lg transition duration-200" onclick="simulateLogin()">
+                    Đăng Nhập
+                </button>
+            </div>
+
+            <div id="register-form-content" class="auth-content hidden">
+                <label class="block text-gray-400 text-sm mb-2" for="register-username">Tên đăng nhập (ID)</label>
+                <input type="text" id="register-username" placeholder="Tên đăng nhập mới" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+
+                <label class="block text-gray-400 text-sm mb-2" for="register-password">Mật khẩu Đăng nhập</label>
+                <input type="password" id="register-password" placeholder="Nhập mật khẩu đăng nhập" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+
+                <label class="block text-gray-400 text-sm mb-2" for="register-withdrawal-password">Mật khẩu Rút tiền</label>
+                <input type="password" id="register-withdrawal-password" placeholder="Nhập mật khẩu rút tiền" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-6 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                
+                <button class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3 rounded-lg transition duration-200" onclick="simulateRegister()">
+                    Đăng Ký Tài khoản
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-modal" class="fixed bottom-20 right-4 hidden z-[1001]">
+        <div class="bg-gray-800 p-0 rounded-xl shadow-2xl w-80 max-h-[500px] flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center bg-teal-600 p-3">
+                <h3 class="text-lg font-semibold text-white">Trò chuyện Trực tuyến</h3>
+                <button class="text-white hover:text-gray-200" onclick="hideChatModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div id="chat-messages" class="flex-grow p-3 space-y-3 overflow-y-auto" style="min-height: 250px; max-height: 400px;">
+                <div class="flex justify-start">
+                    <div class="bg-gray-700 p-2 rounded-xl rounded-tl-none max-w-[80%] text-sm">
+                        Chào mừng! Tôi là bot hỗ trợ của Crypto Dashboard. Tôi có thể giúp gì cho bạn?
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 p-3 flex">
+                <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." class="flex-grow bg-gray-700 text-white p-2 rounded-l-lg focus:outline-none text-sm">
+                <button class="bg-teal-600 hover:bg-teal-500 text-white p-2 rounded-r-lg" onclick="sendChatMessage()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    <button id="chat-toggle-button" class="fixed bottom-4 right-4 bg-teal-600 hover:bg-teal-500 p-4 rounded-full shadow-lg text-white z-[1002]" onclick="toggleChatModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+    </button>
+    <script>
+        // --- CÁC BIẾN TOÀN CỤC (MÔ PHỎNG) ---
+        // NEW: Định nghĩa địa chỉ ví nạp tiền theo mạng, bao gồm SOL
+        const depositAddresses = {
+            'ERC20': '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', // Địa chỉ mô phỏng ERC20
+            'BEP20': '0x2170ed0880ac9a755fd29b268895f7422f28b57f', // Địa chỉ mô phỏng BEP20
+            'SOL': '5F3hadQGWdsY1Xm6jnyz6GbBCpTJ4ZHvR759SB5jYPwh' // Địa chỉ ví SOL theo yêu cầu của người dùng
+        };
+        
+        let cashBalance = 5656773.00; // ĐÃ CẬP NHẬT SỐ DƯ THEO YÊU CẦU CỦA NGƯỜI DÙNG
+        let totalDeposit = 5656773.00; // ĐÃ CẬP NHẬT để đảm bảo đạt VIP 5 (>= $100,000)
+        let mockUserId = 'CD0012345'; // ĐÃ CẬP NHẬT ID NGƯỜI DÙNG THEO YÊU CẦU
+        let isLoggedIn = false;
+        let updateInterval;
+        let notifications = [];
+
+        // Cấu hình cấp độ VIP và giới hạn chuyển khoản
+        const VIP_LEVELS = [
+            { level: 'VIP 0', threshold: 0, transferLimit: 0 },
+            { level: 'VIP 1', threshold: 10, transferLimit: 50 },
+            { level: 'VIP 2', threshold: 100, transferLimit: 3000 },
+            { level: 'VIP 3', threshold: 1000, transferLimit: 50000 },
+            { level: 'VIP 4', threshold: 10000, transferLimit: 500000 },
+            { level: 'VIP 5', threshold: 100000, transferLimit: 10000000 }
+        ];
+
+        // NEW: Hàm lấy URL ảnh icon từ CoinMarketCap CDN (mô phỏng)
+        function getCoinIconUrl(coinId) {
+            // URL mô phỏng sử dụng ID từ CoinMarketCap
+            return `https://s2.coinmarketcap.com/static/img/coins/64x64/${coinId}.png`;
+        }
+        
+        // Danh sách 15 đồng tiền điện tử mô phỏng (5 cũ + 10 mới)
+        let mockCryptos = [
+            // ĐÃ THÊM coinId (ID CoinMarketCap mô phỏng) cho mỗi đồng coin để sử dụng ảnh thực tế
+            { id: 'btc', name: 'Bitcoin', symbol: 'BTC', price: 65000.00, change24h: 0.85, marketCap: '1.28T', owned: 0.00007, ownedValue: 0.00, coinId: 1 }, 
+            { id: 'eth', name: 'Ethereum', symbol: 'ETH', price: 3400.00, change24h: -1.22, marketCap: '408B', owned: 0.001, ownedValue: 0.00, coinId: 1027 }, 
+            { id: 'sol', name: 'Solana', symbol: 'SOL', price: 150.00, change24h: 2.15, marketCap: '67B', owned: 0.00, ownedValue: 0.00, coinId: 5426 }, 
+            { id: 'xrp', name: 'XRP', symbol: 'XRP', price: 0.52, change24h: -0.56, marketCap: '28B', owned: 0.00, ownedValue: 0.00, coinId: 52 }, 
+            { id: 'ada', name: 'Cardano', symbol: 'ADA', price: 0.45, change24h: 1.50, marketCap: '16B', owned: 0.00, ownedValue: 0.00, coinId: 2010 }, 
+            { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', price: 0.15, change24h: 3.01, marketCap: '22B', owned: 0.00, ownedValue: 0.00, coinId: 74 }, 
+            { id: 'dot', name: 'Polkadot', symbol: 'DOT', price: 7.20, change24h: -2.00, marketCap: '10B', owned: 0.00, ownedValue: 0.00, coinId: 6636 }, 
+            { id: 'ltc', name: 'Litecoin', symbol: 'LTC', price: 85.00, change24h: 0.15, marketCap: '6.3B', owned: 0.00, ownedValue: 0.00, coinId: 2 }, 
+            { id: 'matic', name: 'Polygon', symbol: 'MATIC', price: 0.88, change24h: -0.75, marketCap: '8.2B', owned: 0.00, ownedValue: 0.00, coinId: 3890 }, 
+            { id: 'avax', name: 'Avalanche', symbol: 'AVAX', price: 35.00, change24h: 4.10, marketCap: '13B', owned: 0.00, ownedValue: 0.00, coinId: 5805 }, 
+            { id: 'link', name: 'Chainlink', symbol: 'LINK', price: 18.00, change24h: 1.90, marketCap: '10B', owned: 0.00, ownedValue: 0.00, coinId: 1975 }, 
+            { id: 'trx', name: 'TRON', symbol: 'TRX', price: 0.12, change24h: -0.05, marketCap: '10.5B', owned: 0.00, ownedValue: 0.00, coinId: 1958 }, 
+            { id: 'uni', name: 'Uniswap', symbol: 'UNI', price: 10.50, change24h: 1.10, marketCap: '6.3B', owned: 0.00, ownedValue: 0.00, coinId: 7083 }, 
+            { id: 'fil', name: 'Filecoin', symbol: 'FIL', price: 7.50, change24h: -3.50, marketCap: '3.9B', owned: 0.00, ownedValue: 0.00, coinId: 2280 }, 
+            { id: 'vet', name: 'VeChain', symbol: 'VET', price: 0.035, change24h: 2.50, marketCap: '2.5B', owned: 0.00, ownedValue: 0.00, coinId: 3077 }
+        ];
+
+        let activeTransaction = { type: null, cryptoId: null };
+        let currentVIP = VIP_LEVELS[0]; 
+
+        // --- CÁC HÀM TIỆN ÍCH ---
+
+        function formatCurrency(amount) {
+            return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatCryptoAmount(amount) {
+            return amount.toFixed(8);
+        }
+
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            let bgColor = 'bg-teal-600';
+            if (type === 'error') bgColor = 'bg-red-600';
+            if (type === 'info') bgColor = 'bg-blue-600';
+
+            notification.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-xl opacity-0 transform translate-x-10 transition-all duration-300 ease-out max-w-sm`;
+            notification.textContent = message;
+
+            container.appendChild(notification);
+
+            // Hiển thị thông báo
+            setTimeout(() => {
+                notification.classList.remove('opacity-0', 'translate-x-10');
+                notification.classList.add('opacity-100', 'translate-x-0');
+            }, 10);
+
+            // Tự động đóng sau 4 giây
+            setTimeout(() => {
+                notification.classList.remove('opacity-100', 'translate-x-0');
+                notification.classList.add('opacity-0', 'translate-x-10');
+                
+                // Xóa khỏi DOM sau khi animation kết thúc
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 4000);
+        }
+
+        // --- CÁC HÀM UI ---
+
+        function showView(viewId) {
+            // Ẩn tất cả các view
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.remove('active');
+            });
+
+            // Hiển thị view được chọn
+            document.getElementById(`${viewId}-view`).classList.add('active');
+
+            // Cập nhật trạng thái active của navigation desktop
+            document.querySelectorAll('nav:not(.fixed) button').forEach(button => {
+                button.classList.remove('text-teal-400', 'border-teal-500');
+                button.classList.add('text-gray-300');
+            });
+            const desktopNavButton = document.getElementById(`${viewId}-nav-desktop`);
+            if(desktopNavButton) {
+                desktopNavButton.classList.remove('text-gray-300');
+                desktopNavButton.classList.add('text-teal-400');
+            }
+
+            // Cập nhật trạng thái active của navigation mobile
+            document.querySelectorAll('.nav-button-mobile').forEach(button => {
+                button.classList.remove('active');
+            });
+            const mobileNavButton = document.getElementById(`${viewId}-nav-mobile`);
+            if(mobileNavButton) {
+                mobileNavButton.classList.add('active');
+            }
+
+            // Đóng modal thông báo nếu nó đang mở
+            hideNotificationModal();
+            // Cập nhật lại danh mục đầu tư khi chuyển view
+            if (viewId === 'investment') {
+                updatePortfolio();
+            }
+        }
+
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (show) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        // HÀM CHO MODAL NẠP TIỀN
+        function showDepositModal() {
+            // Đảm bảo cập nhật địa chỉ khi modal mở
+            updateDepositAddress(); 
+            toggleModal('deposit-modal', true);
+        }
+
+        function hideDepositModal() {
+            toggleModal('deposit-modal', false);
+        }
+        
+        // NEW: Hàm cập nhật địa chỉ ví nạp tiền dựa trên mạng được chọn
+        function updateDepositAddress() {
+            const selectedNetwork = document.querySelector('input[name="network"]:checked').value;
+            const addressDisplay = document.getElementById('deposit-address-display');
+            const networkDisplay = document.getElementById('selected-network-display');
+            
+            // Cập nhật địa chỉ và tên mạng từ đối tượng depositAddresses
+            addressDisplay.textContent = depositAddresses[selectedNetwork] || 'Không tìm thấy địa chỉ ví cho mạng này.';
+            networkDisplay.textContent = selectedNetwork;
+        }
+
+        function copyDepositAddress() {
+            const address = document.getElementById('deposit-address-display').textContent;
+            navigator.clipboard.writeText(address).then(() => {
+                showNotification('Đã sao chép địa chỉ ví thành công!', 'info');
+            }).catch(err => {
+                showNotification('Không thể sao chép địa chỉ. Vui lòng thử lại.', 'error');
+                console.error('Could not copy text: ', err);
+            });
+        }
+
+        function showTransactionModal(type, cryptoId = null) {
+            activeTransaction.type = type;
+            activeTransaction.cryptoId = cryptoId;
+            const titleElement = document.getElementById('transaction-title');
+            const infoElement = document.getElementById('transaction-info');
+            const buttonElement = document.getElementById('transaction-button');
+            const amountInput = document.getElementById('transaction-amount');
+            // NEW: Address group
+            const addressGroup = document.getElementById('withdrawal-address-group');
+            // Đặt giá trị mặc định cho Mật khẩu Rút tiền
+            document.getElementById('withdrawal-password').value = 'Thien0108@';
+            
+            if (type === 'withdraw') {
+                titleElement.textContent = 'Rút Tiền mặt (USD)';
+                infoElement.textContent = `Số dư hiện tại: $${formatCurrency(cashBalance)}. Phí rút tiền: 1% (mô phỏng).`;
+                buttonElement.textContent = 'Rút tiền';
+                amountInput.value = Math.min(100, cashBalance);
+                // NEW: Show address field for withdrawal
+                addressGroup.classList.remove('hidden');
+            } else if (type === 'buy') {
+                const crypto = mockCryptos.find(c => c.id === cryptoId);
+                titleElement.textContent = `Mua ${crypto.symbol}`;
+                infoElement.textContent = `Giá hiện tại: $${formatCurrency(crypto.price)}. Số dư USD: $${formatCurrency(cashBalance)}.`;
+                buttonElement.textContent = `Mua ${crypto.symbol}`;
+                amountInput.value = 10 / crypto.price; // Mua 10 USD giá trị
+                // NEW: Hide address field for buy/sell
+                addressGroup.classList.add('hidden');
+            } else if (type === 'sell') {
+                const crypto = mockCryptos.find(c => c.id === cryptoId);
+                titleElement.textContent = `Bán ${crypto.symbol}`;
+                infoElement.textContent = `Số lượng sở hữu: ${formatCryptoAmount(crypto.owned)} ${crypto.symbol}.`;
+                buttonElement.textContent = `Bán ${crypto.symbol}`;
+                amountInput.value = crypto.owned;
+                // NEW: Hide address field for buy/sell
+                addressGroup.classList.add('hidden');
+            }
+            toggleModal('transaction-modal', true);
+        }
+
+        function hideTransactionModal() {
+            toggleModal('transaction-modal', false);
+            // Reset withdrawal address when closing
+            document.getElementById('withdrawal-address').value = '';
+        }
+
+        function showTransferModal() {
+            // Kiểm tra VIP Level
+            if (currentVIP.threshold === 0) {
+                showNotification(`Bạn cần đạt ${VIP_LEVELS[1].level} (tổng nạp ≥ $${formatCurrency(VIP_LEVELS[1].threshold)}) để thực hiện chuyển khoản nội bộ.`, 'error');
+                return;
+            }
+            toggleModal('transfer-modal', true);
+        }
+
+        function hideTransferModal() {
+            toggleModal('transfer-modal', false);
+        }
+
+        function showAuthTab(tab) {
+            document.getElementById('login-tab').classList.remove('border-teal-500', 'text-white');
+            document.getElementById('login-tab').classList.add('text-gray-400');
+            document.getElementById('register-tab').classList.remove('border-teal-500', 'text-white');
+            document.getElementById('register-tab').classList.add('text-gray-400');
+            
+            document.getElementById('login-form-content').classList.add('hidden');
+            document.getElementById('register-form-content').classList.add('hidden');
+
+            if (tab === 'login') {
+                document.getElementById('login-tab').classList.add('border-teal-500', 'text-white');
+                document.getElementById('login-form-content').classList.remove('hidden');
+            } else {
+                document.getElementById('register-tab').classList.add('border-teal-500', 'text-white');
+                document.getElementById('register-form-content').classList.remove('hidden');
+            }
+        }
+
+        function showAuthModal() {
+            showAuthTab('login');
+            toggleModal('auth-modal', true);
+        }
+
+        function hideAuthModal() {
+            toggleModal('auth-modal', false);
+        }
+
+        function showChangeLoginPasswordModal() {
+            // Đặt giá trị mặc định cho Mật khẩu Rút tiền
+            document.getElementById('confirm-withdrawal-password').value = 'Thien0108@';
+            toggleModal('change-password-modal', true);
+        }
+
+        function hideChangeLoginPasswordModal() {
+            toggleModal('change-password-modal', false);
+        }
+
+        function toggleChatModal() {
+            const modal = document.getElementById('chat-modal');
+            if (modal.classList.contains('hidden')) {
+                showChatModal();
+            } else {
+                hideChatModal();
+            }
+        }
+
+        function showChatModal() {
+            const modal = document.getElementById('chat-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Cuộn xuống cuối
+            const messages = document.getElementById('chat-messages');
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function hideChatModal() {
+            const modal = document.getElementById('chat-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // HÀM CHO GỬI TIN NHẮN CHAT (MÔ PHỎNG)
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const messageText = input.value.trim();
+            const messagesContainer = document.getElementById('chat-messages');
+
+            if (messageText === '') return;
+
+            // 1. Hiển thị tin nhắn của người dùng
+            const userMessage = document.createElement('div');
+            userMessage.className = 'flex justify-end';
+            userMessage.innerHTML = `<div class="bg-teal-600 p-2 rounded-xl rounded-tr-none max-w-[80%] text-sm">${messageText}</div>`;
+            messagesContainer.appendChild(userMessage);
+
+            // 2. Tự động cuộn xuống
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // 3. Xóa nội dung nhập
+            input.value = '';
+
+            // 4. Phản hồi của Bot (Mô phỏng)
+            setTimeout(() => {
+                const botResponse = document.createElement('div');
+                botResponse.className = 'flex justify-start';
+                let response = 'Cảm ơn bạn đã liên hệ. Hiện tại tất cả nhân viên hỗ trợ đều đang bận. Vui lòng thử lại sau hoặc để lại yêu cầu chi tiết.';
+
+                // Phản hồi thông minh hơn một chút (mô phỏng)
+                const lowerCaseMsg = messageText.toLowerCase();
+                if (lowerCaseMsg.includes('nạp tiền') || lowerCaseMsg.includes('deposit')) {
+                    response = 'Vui lòng nhấn nút "Nạp tiền" trong tab Tài khoản của tôi. Bạn có thể nạp USDT qua mạng ERC20, BEP20 hoặc SOL.';
+                } else if (lowerCaseMsg.includes('rút tiền') || lowerCaseMsg.includes('withdraw')) {
+                    response = 'Để rút tiền, bạn cần vào tab Tài khoản của tôi và sử dụng Mật khẩu Rút tiền. Phí rút tiền là 1% (mô phỏng).';
+                } else if (lowerCaseMsg.includes('vip')) {
+                    response = 'Cấp độ VIP được tính dựa trên tổng số tiền nạp tích lũy. Vui lòng kiểm tra mục "Ghi chú Nâng cấp VIP" trong tab Tài khoản của tôi để biết thêm chi tiết.';
+                }
+
+                botResponse.innerHTML = `<div class="bg-gray-700 p-2 rounded-xl rounded-tl-none max-w-[80%] text-sm">${response}</div>`;
+                messagesContainer.appendChild(botResponse);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 1000);
+        }
+
+
+        // --- CÁC HÀM XÁC THỰC (MÔ PHỎNG) ---
+
+        function updateAuthButton() {
+            const button = document.getElementById('auth-button');
+            if (isLoggedIn) {
+                button.textContent = 'Đăng xuất';
+                button.classList.remove('bg-teal-600', 'hover:bg-teal-500');
+                button.classList.add('bg-red-600', 'hover:bg-red-500');
+            } else {
+                button.textContent = 'Đăng nhập';
+                button.classList.add('bg-teal-600', 'hover:bg-teal-500');
+                button.classList.remove('bg-red-600', 'hover:bg-red-500');
+            }
+        }
+
+        function handleAuthAction() {
+            if (isLoggedIn) {
+                simulateLogout();
+            } else {
+                showAuthModal();
+            }
+        }
+
+        function simulateLogin() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            // Bắt đầu Logic Đăng nhập Chính thức (Mô phỏng) - Kiểm tra ID và Mật khẩu theo yêu cầu của người dùng
+            if (username === 'CD0012345' && password === 'Thien0108%') {
+                isLoggedIn = true;
+                mockUserId = username; 
+                updateAuthButton();
+                hideAuthModal();
+                checkVIPLevel();
+                updateAllBalances();
+                showNotification('Đăng nhập thành công! Tài khoản: CD0012345 (Mô phỏng)', 'success');
+            } else {
+                showNotification('ID đăng nhập hoặc Mật khẩu không chính xác.', 'error');
+                isLoggedIn = false;
+            }
+        }
+
+        function simulateLogout() {
+            // Logic đăng xuất mô phỏng
+            isLoggedIn = false;
+            updateAuthButton();
+            showNotification('Đã đăng xuất.', 'info');
+        }
+
+        // --- CÁC HÀM XỬ LÝ THÔNG BÁO (MỚI) ---
+
+        function addNotification(message, type = 'info') {
+            notifications.push({
+                id: Date.now() + Math.random(),
+                message: message,
+                type: type,
+                read: false,
+                timestamp: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+            });
+            updateNotificationBadge();
+        }
+
+        function updateNotificationBadge() {
+            const badge = document.getElementById('notification-badge');
+            const unreadCount = notifications.filter(n => !n.read).length;
+
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function toggleNotificationModal() {
+            const modal = document.getElementById('notification-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                renderNotifications();
+            }
+        }
+
+        function hideNotificationModal() {
+            document.getElementById('notification-modal').classList.add('hidden');
+        }
+
+        function markAllAsRead() {
+            notifications.forEach(n => n.read = true);
+            updateNotificationBadge();
+            renderNotifications();
+            showNotification('Đã đánh dấu tất cả thông báo là đã đọc.', 'info');
+        }
+
+        function renderNotifications() {
+            const list = document.getElementById('notification-list');
+            list.innerHTML = '';
+
+            // Sắp xếp theo thứ tự mới nhất (ngược)
+            const sortedNotifications = [...notifications].reverse();
+
+            if (sortedNotifications.length === 0) {
+                list.innerHTML = '<p id="empty-notifications" class="p-4 text-gray-500 text-sm text-center">Không có thông báo nào.</p>';
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            sortedNotifications.forEach(n => {
+                const item = document.createElement('div');
+                let bgColor = n.read ? 'bg-gray-800' : 'bg-gray-700/50';
+                let iconColor = n.type === 'success' ? 'text-green-400' : 'text-blue-400';
+                item.className = `p-3 hover:bg-gray-700 cursor-pointer ${bgColor} transition duration-150`;
+
+                item.innerHTML = `
+                    <div class="flex items-start space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ${iconColor} flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${n.type === 'success' ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'}" />
+                        </svg>
+                        <div class="flex-grow">
+                            <p class="text-sm font-medium ${n.read ? 'text-gray-300' : 'text-white'}">${n.message}</p>
+                            <p class="text-xs text-gray-500 mt-1">${n.timestamp}</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Đánh dấu đã đọc khi người dùng nhấp
+                item.onclick = () => {
+                    n.read = true;
+                    updateNotificationBadge();
+                    renderNotifications();
+                };
+
+                fragment.appendChild(item);
+            });
+            list.appendChild(fragment);
+        }
+
+        // Đóng modal thông báo khi nhấp chuột ra ngoài
+        document.addEventListener('click', (event) => {
+            const modal = document.getElementById('notification-modal');
+            const button = document.getElementById('notification-button');
+            
+            if (!modal.classList.contains('hidden')) {
+                const targetElement = event.target;
+                let isClickInsideModal = modal.contains(targetElement);
+                let isClickInsideButton = button.contains(targetElement);
+                
+                if (!isClickInsideModal && !isClickInsideButton) {
+                    hideNotificationModal();
+                }
+            }
+        });
+
+        // --- CÁC HÀM LỌC VÀ CẬP NHẬT DỮ LIỆU ---
+
+        function checkVIPLevel() {
+            let newVIP = VIP_LEVELS[0];
+            for (let i = VIP_LEVELS.length - 1; i >= 0; i--) {
+                if (totalDeposit >= VIP_LEVELS[i].threshold) {
+                    newVIP = VIP_LEVELS[i];
+                    break;
+                }
+            }
+
+            if (newVIP.level !== currentVIP.level) {
+                const oldLevel = currentVIP.level;
+                currentVIP = newVIP;
+                if (oldLevel !== 'VIP 0') { // Không thông báo nếu mới là tài khoản ban đầu
+                    const message = `Chúc mừng! Bạn đã được thăng cấp lên ${currentVIP.level}. Giới hạn chuyển khoản mới: $${formatCurrency(currentVIP.transferLimit)}.`;
+                    showNotification(message, 'info');
+                    addNotification(message, 'info'); // Ghi nhận thông báo mới
+                }
+            }
+
+            // Cập nhật hiển thị VIP
+            document.getElementById('vip-level').textContent = currentVIP.level;
+            
+            // Cập nhật thông tin số dư USD
+            document.getElementById('cash-balance-display').textContent = formatCurrency(cashBalance);
+            
+            // Cập nhật ID Người dùng
+            const userIdElement = document.getElementById('user-id-display');
+            if (userIdElement) {
+                userIdElement.textContent = mockUserId;
+            }
+        }
+
+        function updateAllBalances() {
+            let totalCryptoValue = mockCryptos.reduce((sum, crypto) => sum + crypto.ownedValue, 0);
+            let totalBalance = cashBalance + totalCryptoValue;
+            
+            document.getElementById('total-balance').textContent = formatCurrency(totalBalance);
+            document.getElementById('cash-balance-dashboard').textContent = formatCurrency(cashBalance);
+            document.getElementById('net-worth-display').textContent = formatCurrency(totalBalance);
+        }
+
+        function updateCryptoMarket() {
+            const body = document.getElementById('crypto-market-body');
+            body.innerHTML = '';
+
+            mockCryptos.forEach(crypto => {
+                const changeColor = crypto.change24h >= 0 ? 'text-green-500' : 'text-red-500';
+                const changeIcon = crypto.change24h >= 0 ? '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>';
+                const ownedDisplay = crypto.owned > 0 ? `<p class="text-xs text-gray-500">${formatCryptoAmount(crypto.owned)} ${crypto.symbol} (${formatCurrency(crypto.ownedValue)}$)</p>` : '';
+                
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-700 transition duration-150';
+                row.innerHTML = `
+                    <td class="py-3 px-4 flex items-center">
+                        <img src="${getCoinIconUrl(crypto.coinId)}" alt="${crypto.symbol} Icon" class="w-6 h-6 rounded-full inline-block mr-3">
+                        <div>
+                            <p class="text-white font-medium">${crypto.name} (${crypto.symbol})</p>
+                            ${ownedDisplay}
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-white">$${formatCurrency(crypto.price)}</td>
+                    <td class="py-3 px-4 ${changeColor} font-medium">
+                        ${changeIcon}${crypto.change24h.toFixed(2)}%
+                    </td>
+                    <td class="py-3 px-4 text-gray-400 hidden sm:table-cell">${crypto.marketCap}</td>
+                    <td class="py-3 px-4">
+                        <button class="bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium py-1 px-3 rounded transition duration-200" onclick="showTransactionModal('buy', '${crypto.id}')">
+                            Mua
+                        </button>
+                    </td>
+                `;
+                body.appendChild(row);
+            });
+        }
+
+        function updatePortfolio() {
+            const portfolioList = document.getElementById('portfolio-list');
+            portfolioList.innerHTML = '';
+            let hasCrypto = false;
+            let totalCryptoValue = 0;
+
+            mockCryptos.forEach(crypto => {
+                if (crypto.owned > 0) {
+                    hasCrypto = true;
+                    crypto.ownedValue = crypto.owned * crypto.price;
+                    totalCryptoValue += crypto.ownedValue;
+
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-700 p-4 rounded-lg flex justify-between items-center transition duration-200 hover:bg-gray-600';
+                    card.innerHTML = `
+                        <div class="flex items-center">
+                            <img src="${getCoinIconUrl(crypto.coinId)}" alt="${crypto.symbol} Icon" class="w-8 h-8 rounded-full inline-block mr-3">
+                            <div>
+                                <p class="text-lg font-semibold text-white">${crypto.name} (${crypto.symbol})</p>
+                                <p class="text-sm text-gray-400">Giá: $${formatCurrency(crypto.price)}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-white font-bold">$${formatCurrency(crypto.ownedValue)}</p>
+                            <p class="text-sm text-gray-300">${formatCryptoAmount(crypto.owned)} ${crypto.symbol}</p>
+                            <button class="mt-2 text-xs bg-red-600 hover:bg-red-500 px-3 py-1 rounded font-medium transition duration-200" onclick="showTransactionModal('sell', '${crypto.id}')">Bán</button>
+                        </div>
+                    `;
+                    portfolioList.appendChild(card);
+                }
+            });
+
+            // Hiển thị thông báo rỗng nếu không có tài sản nào
+            if (!hasCrypto) {
+                portfolioList.innerHTML = '<p id="empty-portfolio" class="text-gray-500 text-center py-4">Bạn chưa sở hữu đồng tiền điện tử nào.</p>';
+            }
+
+            // Cập nhật tổng giá trị tài sản
+            document.getElementById('net-worth-display').textContent = formatCurrency(cashBalance + totalCryptoValue);
+            updateAllBalances();
+        }
+
+        // --- CÁC HÀM XỬ LÝ GIAO DỊCH (MÔ PHỎNG) ---
+
+        function simulateDeposit() {
+            const amount = parseFloat(document.getElementById('deposit-amount').value);
+            const network = document.querySelector('input[name="network"]:checked').value;
+
+            if (isNaN(amount) || amount <= 0) {
+                showNotification('Vui lòng nhập số tiền nạp hợp lệ.', 'error');
+                return;
+            }
+
+            // Thực hiện nạp tiền
+            cashBalance += amount;
+            totalDeposit += amount;
+
+            // Cập nhật UI
+            updateAllBalances();
+            checkVIPLevel(); // Kiểm tra thăng cấp VIP
+            hideDepositModal();
+            
+            const message = `Nạp thành công $${formatCurrency(amount)} USDT qua mạng ${network}.`;
+            showNotification(message, 'success');
+            addNotification(message, 'success');
+        }
+
+        function simulateTransaction() {
+            const amount = parseFloat(document.getElementById('transaction-amount').value);
+            const password = document.getElementById('withdrawal-password').value;
+            const withdrawalAddress = document.getElementById('withdrawal-address').value;
+
+            // Kểm tra Mật khẩu Rút tiền (ĐÃ THAY ĐỔI: Thien0108@)
+            if (password !== 'Thien0108@') { 
+                showNotification('Mật khẩu rút tiền không chính xác.', 'error');
+                return;
+            }
+
+            if (isNaN(amount) || amount <= 0) {
+                showNotification('Vui lòng nhập số lượng/số tiền hợp lệ.', 'error');
+                return;
+            }
+
+            if (activeTransaction.type === 'withdraw') {
+                const feeRate = 0.01; // 1%
+                const fee = amount * feeRate;
+                const netAmount = amount - fee;
+
+                if (!withdrawalAddress.trim()) {
+                    showNotification('Vui lòng nhập địa chỉ ví rút tiền.', 'error');
+                    return;
+                }
+                
+                if (amount > cashBalance) {
+                    showNotification('Số dư tiền mặt không đủ để rút.', 'error');
+                    return;
+                }
+
+                cashBalance -= amount; // Trừ cả phí
+                updateAllBalances();
+                showNotification(`Rút thành công $${formatCurrency(netAmount)} USD đến ví: ${withdrawalAddress}. Phí: $${formatCurrency(fee)} (1%).`, 'success');
+                // NEW: Reset withdrawal address
+                document.getElementById('withdrawal-address').value = '';
+            } else if (activeTransaction.type === 'buy') {
+                const crypto = mockCryptos.find(c => c.id === activeTransaction.cryptoId);
+                const cost = amount * crypto.price;
+
+                if (cost > cashBalance) {
+                    showNotification('Số dư tiền mặt không đủ để mua.', 'error');
+                    return;
+                }
+
+                cashBalance -= cost;
+                crypto.owned += amount;
+                updateAllBalances();
+                updatePortfolio();
+                showNotification(`Mua thành công ${formatCryptoAmount(amount)} ${crypto.symbol} với giá $${formatCurrency(cost)}.`, 'success');
+
+            } else if (activeTransaction.type === 'sell') {
+                const crypto = mockCryptos.find(c => c.id === activeTransaction.cryptoId);
+                const received = amount * crypto.price;
+
+                if (amount > crypto.owned) {
+                    showNotification(`Số lượng ${crypto.symbol} sở hữu không đủ để bán.`, 'error');
+                    return;
+                }
+
+                cashBalance += received;
+                crypto.owned -= amount;
+                updateAllBalances();
+                updatePortfolio();
+                showNotification(`Bán thành công ${formatCryptoAmount(amount)} ${crypto.symbol} và nhận được $${formatCurrency(received)}.`, 'success');
+            }
+
+            // Đóng modal và reset password
+            hideTransactionModal();
+            document.getElementById('withdrawal-password').value = '';
+        }
+
+        function simulateTransfer() {
+            const recipient = document.getElementById('transfer-recipient').value.trim();
+            const amount = parseFloat(document.getElementById('transfer-amount').value);
+
+            if (currentVIP.transferLimit === 0) {
+                showNotification('Bạn không đủ điều kiện VIP để thực hiện chuyển khoản nội bộ.', 'error');
+                return;
+            }
+
+            if (isNaN(amount) || amount <= 0) {
+                showNotification('Vui lòng nhập số tiền chuyển hợp lệ.', 'error');
+                return;
+            }
+
+            if (amount > cashBalance) {
+                showNotification('Số dư tiền mặt không đủ để chuyển khoản.', 'error');
+                return;
+            }
+
+            if (amount > currentVIP.transferLimit) {
+                showNotification(`Số tiền chuyển vượt quá giới hạn ${currentVIP.transferLimit} USD của bạn.`, 'error');
+                return;
+            }
+
+            if (!recipient) {
+                showNotification('Vui lòng nhập ID người nhận.', 'error');
+                return;
+            }
+
+            // Logic chuyển khoản mô phỏng
+            cashBalance -= amount;
+            updateAllBalances();
+            hideTransferModal();
+
+            const message = `Chuyển thành công $${formatCurrency(amount)} USD đến ID: ${recipient}. (Mô phỏng)`;
+            showNotification(message, 'success');
+            addNotification(message, 'success');
+        }
+
+        function simulateChangeLoginPassword() {
+            const newPass = document.getElementById('new-login-password').value;
+            const confirmPass = document.getElementById('confirm-new-login-password').value;
+            const withdrawalPass = document.getElementById('confirm-withdrawal-password').value;
+
+            if (newPass.length < 6) {
+                showNotification('Mật khẩu mới phải có ít nhất 6 ký tự.', 'error');
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                showNotification('Xác nhận mật khẩu mới không khớp.', 'error');
+                return;
+            }
+
+            // Kểm tra Mật khẩu Rút tiền (ĐÃ THAY ĐỔI: Thien0108@)
+            if (withdrawalPass !== 'Thien0108@') { 
+                showNotification('Mật khẩu Rút tiền không chính xác.', 'error');
+                return;
+            }
+            
+            // Logic thay đổi thành công (mô phỏng)
+            hideChangeLoginPasswordModal();
+            showNotification('Thay đổi mật khẩu đăng nhập thành công!', 'success');
+            showNotification('Bạn sẽ cần sử dụng mật khẩu mới trong lần đăng nhập tiếp theo.', 'info');
+        }
+
+        function simulateRegister() {
+            // Logic đăng ký mô phỏng
+            hideAuthModal();
+            showNotification('Đăng ký thành công! Vui lòng đăng nhập.', 'success');
+            showAuthTab('login'); // Chuyển về tab đăng nhập
+        }
+
+        // --- VÒNG LẶP CHÍNH CẬP NHẬT GIÁ ---
+
+        function mainLoop() {
+            // 1. Cập nhật giá ngẫu nhiên (± 0.05%)
+            mockCryptos.forEach(crypto => {
+                const fluctuation = (Math.random() * 0.1 - 0.05) / 100; // ± 0.05%
+                crypto.price *= (1 + fluctuation);
+                crypto.change24h = parseFloat((crypto.change24h + fluctuation * 100).toFixed(2));
+                
+                // Cập nhật giá trị sở hữu
+                crypto.ownedValue = crypto.owned * crypto.price;
+            });
+
+            // 2. Cập nhật UI
+            updateCryptoMarket();
+            updateAllBalances();
+            
+            // 3. Nếu đang ở view đầu tư, cập nhật danh mục
+            if (document.getElementById('investment-view').classList.contains('active')) {
+                updatePortfolio();
+            }
+        }
+
+        // Khởi tạo vòng lặp
+        window.onload = function() {
+            // Đặt chế độ xem ban đầu là 'dashboard'
+            showView('dashboard');
+            
+            // Khởi tạo địa chỉ ví nạp tiền
+            updateDepositAddress(); 
+
+            // Cập nhật trạng thái nút đăng nhập/đăng xuất
+            updateAuthButton(); 
+            
+            // Thêm một vài thông báo ban đầu (ví dụ)
+            addNotification("Chào mừng bạn đến với Crypto Dashboard. Hãy nạp tiền để bắt đầu giao dịch! (Mạng SOL đã được thêm)", 'info');
+            addNotification("Hệ thống đang hoạt động ổn định. Chúc bạn một ngày giao dịch hiệu quả!", 'success');
+            
+
+            // Thiết lập vòng lặp cập nhật liên tục cho dashboard
+            updateInterval = setInterval(mainLoop, 4000); 
+            
+            // CHẠY KIỂM TRA VIP NGAY LẬP TỨC để đảm bảo VIP 5 được hiển thị
+            checkVIPLevel();
+        };
+
+        // Dọn dẹp interval khi cửa sổ bị đóng (thực hiện tốt)
+        window.onbeforeunload = function() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        };
+
+        // Bắt sự kiện Enter cho Chat Input
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendChatMessage();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
